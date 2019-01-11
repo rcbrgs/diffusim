@@ -1,0 +1,96 @@
+# Diffusynth - Synthesize DWI images from T2 images.
+# Copyright (C) 2013 Renato Callado Borges
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Author can be reached at rborges@if.usp.br
+
+   Processing recipe (with wrapper):
+-----------===============--------------
+
+01 - Follow steps 01 to 03 of the full verions.
+
+02 - Run the following script, specifying the arguments:
+     ./diffusion_processing_wrapper.sh <experiment>
+     				       number_of_b_values
+				       number_of_directions(including trace, if any) 
+			      	       number_of_slices 
+			      	       pixel_size(in bytes) 
+			      	       number_of_b0_components 
+			      	       size_x_dimension(in pixels) 
+			      	       size_y_dimension(in pixels) 
+				       number_of_traces
+
+03 - Follow the full recipe from step 09 (inclusive) onwards.
+
+
+   Processing recipe (full version):
+-----------===============--------------
+
+From the .REC, .PAR and DICOM files:
+
+01 - From the DICOM, get the "gradient orientation direction" (RL = 2005,10b0, AP = 2005,10b1, FH = 2005,10b2). Verify that the extract_gradient_directions_from_PAR.sh script extracts the components in the right order.
+
+02 - Save the .REC file as "<experiment>/<experiment>_acquisition.rec".
+
+03 - Save the .PAR file as "<experiment>/<experiment>_acquisition.par".
+
+04 - Extract the gradient directions from the .par file using this command:
+     ./extract_gradient_directions_from_PAR.sh	 <experiment>/<experiment>_acquisition.par 
+						 <experiment>/<experiment>_gradient_directions.dat
+
+05 - Split the .rec file in a b0 file and a remainder:
+     ./split_b0_remainder.exe <experiment>/<experiment>_acquisition.rec 
+     			      number_of_b_values 
+			      number_of_directions(including trace, if any) 
+			      number_of_slices 
+			      pixel_size(in bytes) 
+			      number_of_b0_components 
+			      size_x_dimension(in pixels) 
+			      size_y_dimension(in pixels) 
+			      <experiment>/<experiment>_b0.raw
+			      <experiment>/<experiment>_b0_remainder.raw
+
+06 - Remove the trace (if any) from the remainder:
+     ./remove_trace.exe <experiment>/<experiment>_b0_remainder.raw 
+     			number_of_b_values 
+			number_of_directions(including trace) 
+			number_of_traces 
+			number_of_slices 
+			pixel_size(in bytes) 
+			size_x_dimension(in pixels) 
+			size_y_dimension(in pixels) 
+			<experiment>/<experiment>_traces.raw
+			<experiment>/<experiment>_traces_remainder.raw
+
+07 - Split the remainder in the b-value series:
+     ./split_raw_by_b-value.exe <experiment>/<experiment>_traces_remainder.raw 
+     				number_of_b_values 
+				number_of_directions 
+				number_of_slices 
+				pixel_size(in bytes) 
+				size_x_dimension(in pixels) 
+				size_y_dimension(in pixels) 
+				<experiment>/<experiment>_b_value_series-
+
+08 - For each series, append the b0 file as a prefix:
+     ./append_b0_in_front.exe <experiment>/<experiment>_b0.raw
+     			      <experiment>/<experiment>_b_value_series-000.raw 
+			      <experiment>/<experiment>_b_value-bbbb.raw
+
+09 - Using MedSquare, open the <experiment>/<experiment>_b_value-bbbb.raw file and save it as an Analyze file.
+
+10 - Using Bioimage, open the Analyze file under the tensor utility, set the b-value field, load the <experiment>/<experiment>_gradient_directions.dat file as the directions, set the mask threshold as 0 and compute the tensor, then save the tensor file.
+
+11 - Using bioimage, open the tensor file under the tensor analysis tool, compute and then it is done.
